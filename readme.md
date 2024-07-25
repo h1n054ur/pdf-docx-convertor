@@ -1,6 +1,6 @@
 <!-- @format -->
 
-# PDF2DOCX Pro
+# pdf-docx-convertor
 
 [English](#english) | [中文](#中文)
 
@@ -32,8 +32,8 @@ Advanced Python toolkit for lightning-fast PDF to DOCX conversion. Seamlessly ha
 
 1. Clone the repository:
 
-git clone https://github.com/yourusername/PDF2DOCX-Pro.git
-cd PDF2DOCX-Pro
+git clone https://github.com/yourusername/pdf-docx-convertor.git
+cd pdf-docx-convertor
 
 2. Create a virtual environment (optional but recommended):
 
@@ -100,8 +100,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 1. 克隆仓库：
 
-git clone https://github.com/yourusername/PDF2DOCX-Pro.git
-cd PDF2DOCX-Pro
+git clone https://github.com/yourusername/pdf-docx-convertor.git
+cd pdf-docx-convertor
 
 2. 创建虚拟环境（可选但推荐）：
 
