@@ -56,10 +56,23 @@ def convert_pdf_to_docx(pdf_path, docx_path):
         logging.error(f"Error processing PDF: {pdf_path}")
         logging.error(f"Error details: {str(e)}")
 
-def process_file(file_path, output_folder):
-    """Process a single file"""
+def process_file(file_path, output_folder, output_filename=None):
+    """Process a single file
+    
+    Args:
+        file_path: Path to the PDF file
+        output_folder: Folder to save the output file
+        output_filename: Optional specific output filename (without path)
+    
+    Returns:
+        Tuple of (input_path, output_path) or None if processing failed
+    """
     filename = os.path.basename(file_path)
-    docx_path = os.path.join(output_folder, os.path.splitext(filename)[0] + '.docx')
+    
+    if output_filename:
+        docx_path = os.path.join(output_folder, output_filename)
+    else:
+        docx_path = os.path.join(output_folder, os.path.splitext(filename)[0] + '.docx')
     
     if file_path.endswith('.pdf'):
         logging.info(f"Converting PDF: {filename}")
@@ -76,7 +89,7 @@ def process_files(input_folder, output_folder, max_workers=4):
         for filename in os.listdir(input_folder):
             file_path = os.path.join(input_folder, filename)
             if filename.endswith('.pdf'):
-                future = executor.submit(process_file, file_path, output_folder)
+                future = executor.submit(process_file, file_path, output_folder, None)
                 future_to_file[future] = file_path
 
         for future in as_completed(future_to_file):
@@ -115,21 +128,107 @@ def check_and_fix_files(processed_files, size_threshold):
             convert_pdf_to_docx_with_ocr(pdf_path, docx_path)
             logging.info(f"Reprocessed and saved: {docx_path}")
 
+def process_single_file(input_file, output_file, size_threshold):
+    """Process a single PDF file and validate the result
+    
+    Args:
+        input_file: Path to the input PDF file
+        output_file: Path to the output DOCX file
+        size_threshold: Size threshold in bytes for quality check
+        
+    Returns:
+        bool: True if processing was successful, False otherwise
+    """
+    logging.info(f"Processing single file: {input_file}")
+    
+    # Create output directory if it doesn't exist
+    output_dir = os.path.dirname(output_file)
+    if output_dir and not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    
+    # Process the file with the specific output filename
+    output_filename = os.path.basename(output_file)
+    result = process_file(input_file, output_dir, output_filename)
+    if not result:
+        logging.error(f"Failed to process file: {input_file}")
+        return False
+    
+    # Get the paths
+    pdf_path, docx_path = result
+    
+    # Check and fix the file if needed
+    need_ocr = False
+    
+    # Check file size
+    if os.path.getsize(docx_path) < size_threshold:
+        logging.warning(f"Found file smaller than {size_threshold/1024}KB: {docx_path}")
+        need_ocr = True
+    
+    # Check file content
+    if not need_ocr:
+        doc = Document(docx_path)
+        total_text = " ".join([paragraph.text for paragraph in doc.paragraphs])
+        if not is_valid_content(total_text):
+            logging.warning(f"File {docx_path} contains mainly blank content.")
+            need_ocr = True
+    
+    # Reprocess with OCR if needed
+    if need_ocr:
+        logging.info(f"Reprocessing PDF with OCR: {input_file}")
+        convert_pdf_to_docx_with_ocr(input_file, docx_path)
+        logging.info(f"Reprocessed and saved: {docx_path}")
+    
+    return True
+
 def main():
     parser = argparse.ArgumentParser(description="Convert PDF files to DOCX format")
-    parser.add_argument("input_folder", help="Input folder path")
-    parser.add_argument("output_folder", help="Output folder path")
-    parser.add_argument("--max_workers", type=int, default=4, help="Maximum number of worker threads")
+    # Define two mutually exclusive groups for input/output
+    file_group = parser.add_argument_group('Single file processing')
+    file_group.add_argument("--input_file", help="Input PDF file path")
+    file_group.add_argument("--output_file", help="Output DOCX file path")
+    
+    folder_group = parser.add_argument_group('Batch processing')
+    folder_group.add_argument("--input_folder", help="Input folder path containing PDF files")
+    folder_group.add_argument("--output_folder", help="Output folder path for DOCX files")
+    
+    # Common arguments
+    parser.add_argument("--max_workers", type=int, default=4, help="Maximum number of worker threads (for batch processing)")
     parser.add_argument("--size_threshold", type=int, default=15, help="Small file threshold (KB)")
     args = parser.parse_args()
+    
+    # Convert size threshold from KB to bytes
+    size_threshold = args.size_threshold * 1024
 
-    if not os.path.exists(args.output_folder):
-        os.makedirs(args.output_folder)
+    # Check if we're processing a single file or a folder
+    if args.input_file and args.output_file:
+        # Single file processing
+        if not os.path.exists(args.input_file):
+            logging.error(f"Input file does not exist: {args.input_file}")
+            return
+        
+        if not args.input_file.endswith('.pdf'):
+            logging.error(f"Input file is not a PDF: {args.input_file}")
+            return
+            
+        success = process_single_file(args.input_file, args.output_file, size_threshold)
+        if success:
+            logging.info(f"File processed successfully: {args.output_file}")
+        else:
+            logging.error(f"Failed to process file: {args.input_file}")
+    
+    elif args.input_folder and args.output_folder:
+        # Batch processing (original functionality)
+        if not os.path.exists(args.output_folder):
+            os.makedirs(args.output_folder)
 
-    processed_files = process_files(args.input_folder, args.output_folder, args.max_workers)
-    logging.info("Checking and fixing files...")
-    check_and_fix_files(processed_files, args.size_threshold * 1024)
-    logging.info("All files processed.")
+        processed_files = process_files(args.input_folder, args.output_folder, args.max_workers)
+        logging.info("Checking and fixing files...")
+        check_and_fix_files(processed_files, size_threshold)
+        logging.info("All files processed.")
+    
+    else:
+        logging.error("You must specify either --input_file and --output_file for single file processing OR --input_folder and --output_folder for batch processing")
+        parser.print_help()
 
 if __name__ == "__main__":
     main()
