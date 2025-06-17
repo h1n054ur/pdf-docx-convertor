@@ -14,8 +14,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 # Initialize PaddleOCR model with improved settings
 ocr = PaddleOCR(
-    use_angle_cls=False,  # Deprecated parameter
-    use_textline_orientation=True,  # New parameter that replaces use_angle_cls
+    use_textline_orientation=True,  # Use the new parameter instead of use_angle_cls
     lang='ch',  # Support both Chinese and English
     show_log=False,  # Reduce log output
     det_db_thresh=0.3,  # Lower detection threshold for better text detection
