@@ -13,13 +13,10 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Initialize PaddleOCR model with improved settings
+# Using only the most basic parameters to ensure compatibility
 ocr = PaddleOCR(
     use_textline_orientation=True,  # Use the new parameter instead of use_angle_cls
-    lang='ch',  # Support both Chinese and English
-    show_log=False,  # Reduce log output
-    det_db_thresh=0.3,  # Lower detection threshold for better text detection
-    det_db_box_thresh=0.5,  # Lower box threshold
-    rec_batch_num=6  # Increase batch size for faster processing
+    lang='ch'  # Support both Chinese and English
 )
 
 def is_valid_content(text, min_valid_ratio=0.1):
